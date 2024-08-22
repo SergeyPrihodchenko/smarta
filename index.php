@@ -84,7 +84,7 @@ while ($row = fgets($stream2)) {
     }
 
     var_dump(trim($row));
-    clicker(RemoteWebDriver::create($serverUrl, DesiredCapabilities::firefox()), trim($row), $stream, $offset);
+    clicker(RemoteWebDriver::create($serverUrl, DesiredCapabilities::firefox()), trim($row), $stream, $offset, 1);
 }
 
 
@@ -120,8 +120,15 @@ function checkUrl($str): bool
 }
 
 
-function clicker($driver, $url, $stream, $page)
+function clicker($driver, $url, $stream, $page, $exitCheck)
 {
+// продумать отслеживание страниц пагинации ... (делает лишнюю запись 1 страницы в конец)
+    if(($exitCheck + 1) < $page - 1) {
+        $driver->quit();
+        var_dump('Последняя страница каталога');
+        return;
+    }
+
     $driver->navigate()->to($url . "?PAGEN_1=$page");
     var_dump($url . "?PAGEN_1=$page");
     $chekBtn = false;
@@ -133,24 +140,6 @@ function clicker($driver, $url, $stream, $page)
         var_dump('Пагинация не найдена: true');
         $chekBtn = true;
     }
-
-    if(!$chekBtn) {
-        $newUrl = $driver->getCurrentURL();
-
-
-        $newUrl = str_replace("&", "?", $newUrl);
-        $dataUrl = parse_url($newUrl);
-        $queryPage = $dataUrl['query'];
-        $equal_pos = strpos($queryPage, "=");
-        $currentPage = (int)substr($queryPage, $equal_pos + 1);
-
-        if(($currentPage + 1) < $page - 1) {
-            $driver->quit();
-            var_dump('Последняя страница каталога');
-            return;
-        }
-    }
-
     
     try {
 
@@ -182,7 +171,18 @@ function clicker($driver, $url, $stream, $page)
         return;
     }
 
+    if(!$chekBtn) {
+        $btn->click();
+        $newUrl = $driver->getCurrentURL();
+
+        $newUrl = str_replace("&", "?", $newUrl);
+        $dataUrl = parse_url($newUrl);
+        $queryPage = $dataUrl['query'];
+        $equal_pos = strpos($queryPage, "=");
+        $currentPage = (int)substr($queryPage, $equal_pos + 1);
+    }
+
     $newPage = $page + 1;
     $driver->quit();
-    clicker(RemoteWebDriver::create('http://localhost:4444', DesiredCapabilities::firefox()), $url, $stream, $newPage);
+    clicker(RemoteWebDriver::create('http://localhost:4444', DesiredCapabilities::firefox()), $url, $stream, $newPage, $currentPage);
 }
